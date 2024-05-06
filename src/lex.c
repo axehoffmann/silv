@@ -4,45 +4,10 @@
 #include <assert.h>
 #include <ctype.h>
 
-Token lex_id_kw(Lex* l)
-{
+#include "hash_generator.h"
+#include "keyword_hashes.h"
 
-}
-
-Token lex_num(Lex* l)
-{
-    u8 width = 1;
-    while (isdigit(*(l->buffer.data + l->index + width))) width++;
-    // First figure out if its a float number or not.
-    if (*(l->buffer.data + l->index + width) == '.')
-    {
-        width++;
-        while (isdigit(*(l->buffer.data + l->index + width))) width++;
-        char* end;
-        f64 val = strtod(l->buffer.data + l->index, &end);
-        assert(end == (l->buffer.data + l->index + width));
-        assert(errno == 0);
-
-        return (Token){
-            .type = FLOAT,
-            .line = l->curLn, .column = l->curCol, .index = l->index,
-            .fpoint = val,
-        };
-    }
-
-    char* end;
-    u64 val = strtoull(l->buffer.data + l->index, &end, 0);
-    assert(end == (l->buffer.data + l->index + width));
-    assert(errno == 0);
-    return (Token){
-        .type = INTEGER,
-        .line = l->curLn, .column = l->curCol, .index = l->index,
-        .uint = val,
-    };
-}
-
-Token make_tkn(Lex* l, u8 width, Token tk)
-{
+Token make_tkn(Lex* l, u8 width, Token tk) {
     l->index += width;
     return tk;
 }
@@ -54,11 +19,102 @@ Token make_tkn(Lex* l, u8 width, Token tk)
     .index = l->index,                          \
 });
 
-Token lex_tkn(Lex* l)
-{
+bool isident(char c) {
+    return c == '_' || isalpha(c) || isdigit(c);
+}
+
+Token lex_id_kw(Lex* l) {
+    // Find length of the kw/ident
+    u32 width = 1;
+    while (isident(*(l->buffer.data + l->index + width))) width++;
+    
+    char* loc = (l->buffer.data + l->index);
+    // Compare hash of the string for keyword lookup.
+    switch (hash_str(loc, width, 0)) {
+#define kw(HASH, TK, TKSTR)                             \
+    case HASH: {                                        \
+        const u64 tklen = strlen(TKSTR);                \
+        if (tklen != width) break;                      \
+        if (!strncmp(loc, TKSTR, strlen(TKSTR))) break; \
+        return tkn(width, TK); }
+
+    kw(KW_FN_HASH,     FN,     "fn");
+    kw(KW_STRUCT_HASH, STRUCT, "struct");
+
+    kw(KW_U8_HASH,     U8,     "u8");
+    kw(KW_U16_HASH,    U16,    "u16");
+    kw(KW_U32_HASH,    U32,    "u32");
+    kw(KW_U64_HASH,    U64,    "u64");
+    kw(KW_I8_HASH,     I8,     "i8");
+    kw(KW_I16_HASH,    I16,    "i16");
+    kw(KW_I32_HASH,    I32,    "i32");
+    kw(KW_I64_HASH,    I64,    "i64");
+    kw(KW_F32_HASH,    F32,    "f32");
+    kw(KW_F64_HASH,    F64,    "f64");
+    kw(KW_VEC2_HASH,   VEC2,   "vec2");
+    kw(KW_VEC3_HASH,   VEC3,   "vec3");
+    kw(KW_VEC4_HASH,   VEC4,   "vec4");
+    kw(KW_MAT2_HASH,   MAT2,   "mat2");
+    kw(KW_MAT3_HASH,   MAT3,   "mat3");
+    kw(KW_MAT4_HASH,   MAT4,   "mat4");
+
+    default: break;
+    }
+#undef kw
+
+    u32 i = l->index;
+    l->index += width;
+    return (Token){
+        .type = IDENT,
+        .line = l->curLn, .column = l->curCol, .index = l->index,
+        .str = (Str){
+            .data = loc,
+            .size = width,
+        },
+    };
+}
+
+Token lex_num(Lex* l) {
+
+    u8 width = 1;
+    while (isdigit(*(l->buffer.data + l->index + width))) width++;
+
+    if (*(l->buffer.data + l->index + width) == '.') {
+        // Its a decimal! parse it as a float
+        width++;
+        while (isdigit(*(l->buffer.data + l->index + width))) width++;
+        char* end;
+        f64 val = strtod(l->buffer.data + l->index, &end);
+        assert(end == (l->buffer.data + l->index + width));
+        assert(errno == 0);
+
+        Token tk = (Token){
+            .type = FLOAT,
+            .line = l->curLn, .column = l->curCol, .index = l->index,
+            .fpoint = val,
+        };
+        l->index += width;
+        return tk;
+    }
+
+    // Parse as an integer.
+    char* end;
+    u64 val = strtoull(l->buffer.data + l->index, &end, 0);
+    assert(end == (l->buffer.data + l->index + width));
+    assert(errno == 0);
+
+    Token tk = (Token){
+        .type = INTEGER,
+        .line = l->curLn, .column = l->curCol, .index = l->index,
+        .uint = val,
+    };
+    l->index += width;
+    return tk;
+}
+
+Token lex_tkn(Lex* l) {
     char c = *(l->buffer.data + l->index);
-    switch (c)
-    {
+    switch (c) {
     // Whitespace
     case '\n':
         l->curLn++;
@@ -87,8 +143,7 @@ Token lex_tkn(Lex* l)
 
 #define lex_boolop(C, TK)                               \
     case C:                                             \
-        switch (*(l->buffer.data + l->index + 1))       \
-        {                                               \
+        switch (*(l->buffer.data + l->index + 1)) {     \
         case '=': return tkn(2, TK##_ASGN);             \
         case C: return tkn(1, TK);                      \
         default: return tkn(1, TK##_BIT);               \
@@ -122,20 +177,16 @@ Token lex_tkn(Lex* l)
 #undef lex_boolop
 #undef tkn
 
-void refill_lex_buf(Lex* l)
-{
-    while (l->tkWrite != l->tkRead)
-    {
+void refill_lex_buf(Lex* l) {
+    while (l->tkWrite != l->tkRead) {
         l->tkbuf[l->tkWrite] = lex_tkn(l);
         l->tkWrite = (l->tkWrite + 1) % LEX_BUFFER_SIZE;
     }
 }
 
-Lex* lex_start(char* file)
-{
+Lex* lex_start(char* file) {
     Str data;
-    if (!load_file(file, &data))
-    {
+    if (!load_file(file, &data)) {
         fprintf(stderr, "Failed to load file: %s", file);
         return NULL;
     }
@@ -145,7 +196,6 @@ Lex* lex_start(char* file)
         .buffer = data,
         .index = 0,
 
-        .tkbuf = {},
         .tkWrite = 0,
         .tkRead = 0,
 
@@ -156,14 +206,12 @@ Lex* lex_start(char* file)
     return l;
 }
 
-void lex_end(Lex* l)
-{
+void lex_end(Lex* l) {
     str_free(&l->buffer);
     free(l);
 }
 
-Token lex_eat(Lex* l)
-{
+Token lex_eat(Lex* l) {
     refill_lex_buf(l);
 
     Token tk = l->tkbuf[l->tkRead];
@@ -172,15 +220,13 @@ Token lex_eat(Lex* l)
     return tk;
 }
 
-Token lex_peek(Lex* l, u8 offset)
-{
+Token lex_peek(Lex* l, u8 offset) {
     assert(offset < LEX_BUFFER_SIZE);
 
     refill_lex_buf(l);
     return l->tkbuf[(l->tkRead + offset) % LEX_BUFFER_SIZE];
 }
 
-void lex_skip(Lex* l, u8 offset)
-{
+void lex_skip(Lex* l, u8 offset) {
     l->tkRead = (l->tkRead + offset) % LEX_BUFFER_SIZE;
 }
