@@ -6,9 +6,11 @@
 
 #include "hash_generator.h"
 #include "keyword_hashes.h"
+#include "compiler_util.h"
 
 Token make_tkn(Lex* l, u8 width, Token tk) {
     l->index += width;
+    l->curCol += width;
     return tk;
 }
 
@@ -64,6 +66,7 @@ Token lex_id_kw(Lex* l) {
 
     u32 i = l->index;
     l->index += width;
+    l->curCol += width;
     return (Token){
         .type = IDENT,
         .line = l->curLn, .column = l->curCol, .index = l->index,
@@ -94,6 +97,7 @@ Token lex_num(Lex* l) {
             .fpoint = val,
         };
         l->index += width;
+        l->curCol += width;
         return tk;
     }
 
@@ -109,6 +113,7 @@ Token lex_num(Lex* l) {
         .uint = val,
     };
     l->index += width;
+    l->curCol += width;
     return tk;
 }
 
@@ -130,7 +135,12 @@ Token lex_tkn(Lex* l) {
         l->curCol++;
         return lex_tkn(l);
 
-    case ':': return tkn(1, COLON);
+    case '.': return tkn(1, DOT);
+    case ':': 
+        switch (*(l->buffer.data + l->index + 1)) {
+        case ':': return tkn(2, CONST_ASGN);
+        default: return tkn(1, COLON);
+        }
     case ',': return tkn(1, COMMA);
     case ';': return tkn(1, SEMI);
     case '{': return tkn(1, LBRACE);
@@ -156,12 +166,43 @@ Token lex_tkn(Lex* l) {
 
     // #TODO: strtoll for signed integers? or just handle signed ints in parsing
     lex_op('+', ADD)
-    lex_op('-', SUB)
     lex_op('*', MUL)
     lex_op('/', DIV)
     lex_op('%', MOD)
     lex_boolop('|', OR)
     lex_boolop('&', AND)
+    case '~': return tkn(1, NOT_BIT)
+
+    // Can't macro for sub, because -> token exists
+    // -=, ->, -
+    case '-':
+        switch (*(l->buffer.data + l->index + 1)) {
+        case '=': return tkn(2, SUB_ASGN);
+        case '>': return tkn(2, ARROW);
+        default:  return tkn(1, SUB);
+        }
+
+    // Comparison operators
+    case '!':
+        switch (*(l->buffer.data + l->index + 1)) {
+        case '=': return tkn(2, NEQ);
+        default: return tkn(1, NOT);
+        }
+    case '=':
+        switch (*(l->buffer.data + l->index + 1)) {
+        case '=': return tkn(2, EQ);
+        default: return tkn(1, ASGN);
+        }
+    case '>':
+        switch (*(l->buffer.data + l->index + 1)) {
+        case '=': return tkn(2, GEQ);
+        default: return tkn(1, GT);
+        }
+    case '<':
+        switch (*(l->buffer.data + l->index + 1)) {
+        case '=': return tkn(2, LEQ);
+        default: return tkn(1, LT);
+        }
 
     case EOF:
     case '\0':
@@ -174,7 +215,8 @@ Token lex_tkn(Lex* l) {
         if (isdigit(c)) return lex_num(l);
     }
 
-    fprintf(stderr, "Error on line %u (column %u): unknown token  %c", l->curLn, l->curCol, c);
+    fprintf(stderr, "\nError on line %u (column %u): unknown token  '%c'\n\n", l->curLn, l->curCol, c);
+    errloc(l->buffer.data, l->index, l->curLn);
     exit(1);
 }
 
@@ -204,7 +246,7 @@ Lex* lex_start(char* file) {
         .tkWrite = 0,
         .tkRead = 0,
 
-        .curLn = 0,
+        .curLn = 1, // Editors start at line 1
         .curCol = 0,
     };
     // Fill initial buffer

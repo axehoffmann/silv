@@ -30,8 +30,7 @@ enum Type {
     ARROW,
     COMMA,
 
-    CONST_DECL,
-    DECL,
+    CONST_ASGN,
     ASGN,
 
     DOT,
@@ -47,6 +46,7 @@ enum Type {
     OR_BIT,     OR_ASGN,       OR,
     AND_BIT,    AND_ASGN,      AND,
     // BIT_XOR,    BIT_XOR_ASGN,
+    NOT_BIT, NOT,
 
     // Comparisons
     EQ,
