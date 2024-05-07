@@ -20,7 +20,7 @@ typedef float       f32;
 
 struct Str {
     char* data;
-    u64 size;
+    u32 size;
 };
 typedef struct Str Str;
 

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-inline u32 hash_str(const char* str, u64 n, u64 idx) {
+inline u32 hash_str(const char* str, u32 n, u64 idx) {
     return !(idx != n) ? 55 : (hash_str(str, n, idx + 1) * 33) + (u8)(str[idx]);
 }
 

@@ -35,7 +35,7 @@ Token lex_id_kw(Lex* l) {
     case HASH: {                                        \
         const u64 tklen = strlen(TKSTR);                \
         if (tklen != width) break;                      \
-        if (!strncmp(loc, TKSTR, strlen(TKSTR))) break; \
+        if (strncmp(loc, TKSTR, strlen(TKSTR)) != 0) break; \
         return tkn(width, TK); }
 
     kw(KW_FN_HASH,     FN,     "fn");
@@ -113,7 +113,12 @@ Token lex_num(Lex* l) {
 }
 
 Token lex_tkn(Lex* l) {
+    // #TODO why
+    if (l->index >= l->buffer.size)
+        return (Token){ .type = EOF_TOK };
+
     char c = *(l->buffer.data + l->index);
+
     switch (c) {
     // Whitespace
     case '\n':
@@ -159,7 +164,7 @@ Token lex_tkn(Lex* l) {
     lex_boolop('&', AND)
 
     case EOF:
-    case 0:
+    case '\0':
         return tkn(1, EOF_TOK);
 
     default:
@@ -202,6 +207,10 @@ Lex* lex_start(char* file) {
         .curLn = 0,
         .curCol = 0,
     };
+    // Fill initial buffer
+    for (u32 i = 0; i < LEX_BUFFER_SIZE; i++) {
+        l->tkbuf[i] = lex_tkn(l);
+    }
 
     return l;
 }

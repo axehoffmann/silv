@@ -19,9 +19,9 @@ bool load_file(char* path, Str* out)
 
     char* data = NULL;
     char* temp;
-    u64 size = 0;
-    u64 used = 0;
-    u64 n;
+    u32 size = 0;
+    u32 used = 0;
+    u32 n;
 
     while (true)
     {
