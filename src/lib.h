@@ -18,6 +18,8 @@ typedef int8_t   i8;
 typedef long double f64;
 typedef float       f32;
 
+typedef size_t   usize;
+
 struct Str {
     char* data;
     u32 size;
@@ -42,7 +44,7 @@ void str_free(Str* str);
 #define newzstr(N) (Str){ .data = newzarr(char, N), .size = N }
 
 // Mallocs, or exits if OOM.
-inline void* assert_malloc(u64 size)
+inline void* assert_malloc(usize size)
 {
     void* data = malloc(size);
     if (!data)
@@ -53,7 +55,7 @@ inline void* assert_malloc(u64 size)
     return data;
 }
 
-inline void* assert_calloc(u64 n, u64 size)
+inline void* assert_calloc(usize n, usize size)
 {
     void* data = calloc(n, size);
     if (!data)
