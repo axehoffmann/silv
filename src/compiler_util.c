@@ -29,3 +29,7 @@ void errloc(char* buf, u32 index, u32 line) {
     printf("%u|%.*s\n", line, end - start - 1, buf + start + 1);
     printf("%*s^ HERE\n", margin + (index - start - 1), "");
 }
+
+void errstart(u32 line, u32 col) {
+    printf("Error on line %u (column %u): ", line, col);
+}

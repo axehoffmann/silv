@@ -20,6 +20,8 @@ typedef struct ast_struct_literal AstStructLiteral;
 typedef struct ast_call AstCall;
 typedef struct ast_proc AstProc;
 
+typedef struct ast_type AstType;
+
 enum ast_node_type {
     AST_BLOCK,
     AST_VALUE,
@@ -69,7 +71,7 @@ typedef struct ast_binop {
 typedef struct ast_decl {
     ast_base base;
     
-    char* identifier;
+    Str name;
     ast_base* type;
     ast_base* rhs;
 } AstDecl;
@@ -112,6 +114,7 @@ typedef struct ast_struct_literal {
 typedef struct ast_call {
     ast_base base;
 
+    Str procName;
     ast_base* proc; // Some sort of reference to the proc to call?
     AstValueList* values;
 } AstCall;
@@ -119,7 +122,7 @@ typedef struct ast_call {
 typedef struct ast_proc {
     ast_base base;
 
-    char* name;
+    Str name;
     AstDecl* parameters;
     AstBlock* block;
 } AstProc;
@@ -127,6 +130,6 @@ typedef struct ast_proc {
 typedef struct ast_struct {
     ast_base base;
 
-    char* name;
+    Str name;
     AstDecl* members;
 } AstStruct;
