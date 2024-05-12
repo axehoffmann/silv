@@ -11,6 +11,7 @@
 
 typedef struct ast_block AstBlock;
 typedef struct ast_constant AstConstant;
+typedef struct ast_memory AstMemory;
 typedef struct ast_binop AstBinOp;
 typedef struct ast_decl AstDecl;
 typedef struct ast_assign AstAssign;
@@ -24,8 +25,9 @@ typedef struct ast_type AstType;
 
 enum ast_node_type {
     AST_BLOCK,
-    AST_VALUE,
-    AST_BINEXPR,
+    AST_CONSTANT,
+    AST_MEMORY,
+    AST_BINOP,
     AST_DECL,
     AST_ASSIGN,
     AST_IF,
@@ -34,6 +36,7 @@ enum ast_node_type {
     AST_CALL,
     AST_PROC,
     AST_STRUCT,
+    AST_TYPE,
 };
 
 typedef struct ast_base {
@@ -44,7 +47,7 @@ typedef struct ast_base {
 typedef struct ast_block {
     ast_base base;
 
-    ast_base* statements;
+    ast_base** statements; // Note this is an stb_ds dynamic array
 } AstBlock;
 
 typedef struct ast_constant {
@@ -60,20 +63,29 @@ typedef struct ast_constant {
     };
 } AstConstant;
 
+typedef struct ast_memory {
+    ast_base base;
+
+    Str name;
+} AstMemory;
+
 typedef struct ast_binop {
     ast_base base;    
 
-    u32 opTk; // The operator token type
-    ast_base* l;
-    ast_base* r;
+    i32 opTk; // The operator token type
+    ast_base* lhs;
+    ast_base* rhs;
 } AstBinOp;
 
 typedef struct ast_decl {
     ast_base base;
     
     Str name;
-    ast_base* type;
+    AstType* type;
     ast_base* rhs;
+
+    AstDecl* next; // Points to the next in a decl chain
+    
 } AstDecl;
 
 typedef struct ast_assign {
@@ -100,14 +112,14 @@ typedef struct ast_value_list {
 typedef struct ast_array {
     ast_base base;
 
-    ast_base* type;
+    AstType* type;
     AstValueList* values;
 } AstArray;
 
 typedef struct ast_struct_literal {
     ast_base base;
 
-    ast_base* type;
+    AstType* type;
     AstValueList* values;
 } AstStructLiteral;
 
@@ -115,8 +127,7 @@ typedef struct ast_call {
     ast_base base;
 
     Str procName;
-    ast_base* proc; // Some sort of reference to the proc to call?
-    AstValueList* values;
+    ast_base** args;
 } AstCall;
 
 typedef struct ast_proc {
@@ -124,6 +135,7 @@ typedef struct ast_proc {
 
     Str name;
     AstDecl* parameters;
+    AstType* returnType;
     AstBlock* block;
 } AstProc;
 
@@ -133,3 +145,9 @@ typedef struct ast_struct {
     Str name;
     AstDecl* members;
 } AstStruct;
+
+typedef struct ast_type {
+    ast_base base;
+
+    i32 typeID; // Currently just the token type.
+} AstType;

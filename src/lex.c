@@ -60,6 +60,15 @@ Token lex_id_kw(Lex* l) {
     kw(KW_MAT3_HASH,   MAT3,   "mat3");
     kw(KW_MAT4_HASH,   MAT4,   "mat4");
 
+    kw(KW_BOOL_HASH,   BOOL,   "bool");
+    kw(KW_TRUE_HASH,   BTRUE,  "true");
+    kw(KW_FALSE_HASH,  BFALSE, "false");
+
+    kw(KW_IF_HASH,     IF,     "if");
+    kw(KW_ELSE_HASH,   ELSE,   "else");
+
+    kw(KW_VOID_HASH,   VOID,   "void");
+
     default: break;
     }
 #undef kw

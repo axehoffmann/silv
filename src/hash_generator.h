@@ -36,5 +36,15 @@ inline void generate_keyword_hashes() {
     genhash(KW_TRUE_HASH,  "true");
     genhash(KW_FALSE_HASH, "false");
 
+    genhash(KW_IF_HASH, "if");
+    genhash(KW_ELSE_HASH, "else");
+    genhash(KW_VOID_HASH, "void");
+
+    genhash(KW_FOR_HASH, "for");
+    genhash(KW_IN_HASH, "in");
+
+    genhash(KW_SWITCH_HASH, "switch");
+    genhash(KW_CASE_HASH, "case");
+
 #undef genhash
 }

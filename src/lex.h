@@ -16,8 +16,13 @@ enum Type {
     I8, I16, I32, I64,
     VEC2, VEC3, VEC4,
     MAT2, MAT3, MAT4,
+    VOID,
 
-    BOOL, TRUE, FALSE,
+    BOOL, BTRUE, BFALSE,
+
+    IF, ELSE,
+
+    FOR, IN,
 
     LPAREN,
     RPAREN,
