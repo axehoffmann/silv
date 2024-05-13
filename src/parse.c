@@ -9,11 +9,11 @@
 #include "stb_ds.h"
 
 #define require(TK, message) {                                  \
-    Token tk = lex_peek(p->l, 0);                                  \
+    Token tk = lex_peek(p->l, 0);                               \
     if (tk.type != TK) {                                        \
         fprintf(stderr, "\nError on line %u (column %u): %s",   \
                 tk.line, tk.column, message);                   \
-        errloc(p->l->buffer.data, tk.index, tk.line);              \
+        errloc(p->l->buffer.data, tk.index, tk.line);           \
     }}
 
 #define require_s(TK, message)                  \

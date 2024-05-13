@@ -63,6 +63,7 @@ typedef struct ast_constant {
     };
 } AstConstant;
 
+// @TODO: rename to identifer, its not necesarrily memory. operator overloads and such
 typedef struct ast_memory {
     ast_base base;
 
