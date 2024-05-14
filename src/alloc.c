@@ -37,6 +37,7 @@ void* arena_allocate(Arena* arena, usize size, usize alignment) {
     assert(alignment == 1 || !(alignment & (alignment - 1)));
     assert(size / alignment * alignment == size);
 
+    usize bob = size;
     char* p = arena->buffer + arena->it;
 
     uintptr_t original = (uintptr_t)p;
@@ -46,7 +47,7 @@ void* arena_allocate(Arena* arena, usize size, usize alignment) {
     }
 
     // Rounds the pointer up to a multiple of alignment
-    uintptr_t aligned = (original + alignment - 1) & !(alignment - 1);
+    uintptr_t aligned = (original + alignment - 1) & -alignment;
 
     size_t offset = aligned - original;
 

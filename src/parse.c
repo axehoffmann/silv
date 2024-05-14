@@ -11,7 +11,7 @@
 #define require(TK, message) {                                  \
     Token tk = lex_peek(p->l, 0);                               \
     if (tk.type != TK) {                                        \
-        fprintf(stderr, "\nError on line %u (column %u): %s",   \
+        fprintf(stderr, "\nError on line %u (column %u): %s\n", \
                 tk.line, tk.column, message);                   \
         errloc(p->l->buffer.data, tk.index, tk.line);           \
     }}
@@ -215,24 +215,23 @@ AstDecl* parse_single_decl(Parse* p) {
     node->name = ident.str;
     node->type = parse_type(p);
     node->rhs = NULL;
-    node->next = NULL;
 
     return node;
 }
 
-AstDecl* parse_parameters(Parse* p) {
-    AstDecl* first = parse_single_decl(p);
-    AstDecl* current = first;
+AstDecl** parse_parameters(Parse* p) {
+    AstDecl** params = NULL;
+    arrput(params, parse_single_decl(p));
 
     while (lex_peek(p->l, 0).type == COMMA) {
         lex_skip(p->l, 1);
 
         AstDecl* next = parse_single_decl(p);
-        current->next = next;
-        current = next;
+        arrput(params, next);
     }
 
-    return first;
+    u32 bob = arrlen(params);
+    return params;
 }
 
 AstAssign* parse_asgn(Parse* p) {
@@ -321,7 +320,9 @@ AstProc* parse_proc(Parse* p) {
     Token fntk = lex_eat(p->l);
     assert(fntk.type == FN);
 
-    AstProc* node = arena_alloc(p->arena, AstProc);
+    usize bob = sizeof(AstProc);
+    i64 bob2 = sizeof(AstProc);
+    AstProc* node = arena_allocate(p->arena, sizeof(AstProc), _Alignof(AstProc));
     node->base = (ast_base){ AST_PROC, fntk.index };
 
     // Procedure name

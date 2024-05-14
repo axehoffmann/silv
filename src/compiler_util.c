@@ -24,8 +24,8 @@ void errloc(char* buf, u32 index, u32 line) {
     i32 margin = floor(log10(line)) + 2;
     i32 l1Pad = margin - (floor(log10(line - 1)) + 2);
 
-
-    printf("%*s%u|%.*s\n", l1Pad, "", line - 1, start - preStart - 1, buf + preStart + 1);
+    if (preStart != start)
+        printf("%*s%u|%.*s\n", l1Pad, "", line - 1, start - preStart - 1, buf + preStart + 1);
     printf("%u|%.*s\n", line, end - start - 1, buf + start + 1);
     printf("%*s^ HERE\n", margin + (index - start - 1), "");
 }

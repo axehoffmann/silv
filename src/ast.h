@@ -84,8 +84,6 @@ typedef struct ast_decl {
     Str name;
     AstType* type;
     ast_base* rhs;
-
-    AstDecl* next; // Points to the next in a decl chain
     
 } AstDecl;
 
@@ -135,7 +133,7 @@ typedef struct ast_proc {
     ast_base base;
 
     Str name;
-    AstDecl* parameters;
+    AstDecl** parameters;
     AstType* returnType;
     AstBlock* block;
 } AstProc;
@@ -152,3 +150,12 @@ typedef struct ast_type {
 
     i32 typeID; // Currently just the token type.
 } AstType;
+
+typedef struct parse_state Parse;
+typedef struct Lex Lex;
+
+Parse* parse_begin(Lex* l);
+void parse_end(Parse* p);
+ast_base* parse_one(Parse* p);
+
+void print_expr(ast_base* node);

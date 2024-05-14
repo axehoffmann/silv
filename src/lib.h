@@ -15,10 +15,13 @@ typedef int32_t  i32;
 typedef int16_t  i16;
 typedef int8_t   i8;
 
-typedef long double f64;
-typedef float       f32;
+typedef double   f64;
+typedef float    f32;
 
 typedef size_t   usize;
+
+#define Array_for(ITEM, ARR) \
+    for (__typeof__(ARR) ITEM = ARR; ITEM != ARR + hmlen(ARR) - 1; ITEM++)
 
 struct Str {
     char* data;

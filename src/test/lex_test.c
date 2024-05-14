@@ -3,12 +3,14 @@
 
 #include "../lex.h"
 #include "../lib.h"
+#include "../ast.h"
 #include <assert.h>
 
 void lex_test() {
     Lex* l = lex_start("test/t1.silv");
-    Token tk;
-    do {
-        tk = lex_eat(l);
-    } while (tk.type != EOF_TOK);
+    Parse* p = parse_begin(l);
+    
+    print_expr(parse_one(p));
+
+    parse_end(p);
 }
