@@ -16,9 +16,26 @@
         errloc(p->l->buffer.data, tk.index, tk.line);           \
     }}
 
-#define require_s(TK, message)                  \
-    require(TK, message)                        \
-    lex_skip(p->l, 1)
+#define require_s(TK, message) {                                \
+    Token tk = lex_peek(p->l, 0);                               \
+    if (tk.type != TK) {                                        \
+        fprintf(stderr, "\nError on line %u (column %u): %s\n", \
+                tk.line, tk.column, message);                   \
+        errloc(p->l->buffer.data, tk.index, tk.line);           \
+    } else lex_skip(p->l, 1); }
+
+// require_s with added context
+#define require_sc(TK, message, context, CTK) {                 \
+    Token tk = lex_peek(p->l, 0);                               \
+    if (tk.type != TK) {                                        \
+        fprintf(stderr, "\nError on line %u (column %u): %s\n", \
+            tk.line, tk.column, message);                       \
+        errloc(p->l->buffer.data, tk.index, tk.line);           \
+        fprintf(stderr, "%s (on line %u, column %u)\n",         \
+            context, CTK.line, CTK.column);                     \
+        errloc(p->l->buffer.data, CTK.index, CTK.line);         \
+    } else lex_skip(p->l, 1); }
+
 
 typedef struct decl_entry {
     char* key;
@@ -39,7 +56,6 @@ AstConstant* parse_constant(Parse* p) {
     node->base = (ast_base){ AST_CONSTANT, tk.index };
 
     // #TODO: signed integers
-    assert(node);
     switch (tk.type) {
     case INTEGER:
         node->valueType = VALUE_UINT;
@@ -114,6 +130,9 @@ precedence infix_precedence(i32 op) {
     case OR_BIT:
     case AND_BIT:
         return (precedence){ 9, 10 };
+
+    case DOT:
+        return (precedence){ 16, 15 };
     default:
         return (precedence){ -1, -1 };
     }
@@ -122,18 +141,19 @@ precedence infix_precedence(i32 op) {
 precedence prefix_precedence(i32 op) {
     switch (op) {
     case NOT:
-        return (precedence){ -1, 11 };
     case NOT_BIT:
-        return (precedence){ -1, 11};
+        return (precedence){ -1, 11 };
+    case SUB:
+        return (precedence){ -1, 9 };
     default:
-        assert(false);
-        exit(420);
+        return (precedence){ -1, -1 };
     }
 }
 
 precedence postfix_precedence(i32 op) {
     switch (op) {
     case LBRACK:
+    case LPAREN:
         return (precedence){ 12, -1 };
     default:
         assert(false);
@@ -143,16 +163,38 @@ precedence postfix_precedence(i32 op) {
 
 
 ast_base* parse_expr(Parse* p, u8 curPrecedence) {
-    ast_base* node = parse_value(p);
+    // Parse a prefix operator, or a value
+    Token it = lex_peek(p->l, 0);
+    precedence prec = prefix_precedence(it.type);
+    ast_base* node = NULL;
+    if (prec.r == -1) {
+        if (it.type == LPAREN) {
+            lex_skip(p->l, 1);
+            node = parse_expr(p, 0);
+            require_sc(RPAREN, "Unclosed paren in expression", "Other paren here", it);
+        }
+        else
+            node = parse_value(p);
+    }
+    else {
+        AstUnOp* opnode = arena_alloc(p->arena, AstUnOp);
+        *opnode = (AstUnOp){
+            .base = (ast_base){ AST_UNOP, it.index },
+            .opTk = it.type,
+        };
+        lex_skip(p->l, 1);
+        opnode->rest = parse_expr(p, prec.r);
+        node = (ast_base*) opnode;
+    }
 
     // Pratt expression parser
     while (true) {
         Token op = lex_peek(p->l, 0);
 
-        if (op.type < ADD || op.type > GEQ)
-            break; // end of expression chain, not an operator
-
         precedence prec = infix_precedence(op.type);
+        if (prec.l == -1) 
+            break; // Not an infix operator
+        
         if (prec.l < curPrecedence)
             break;
 
@@ -208,13 +250,18 @@ AstCall* parse_call(Parse* p) {
 AstDecl* parse_single_decl(Parse* p) {
     Token ident = lex_peek(p->l, 0);
     require_s(IDENT, "A declaration must begin with an identifier");
+    require_s(COLON, "Parameter declarations must be of the form 'name: type'");
 
     AstDecl* node = arena_alloc(p->arena, AstDecl);
     node->base = (ast_base){ AST_DECL, ident.index };
-    require_s(COLON, "Parameter declarations must be of the form 'name: type'");
     node->name = ident.str;
     node->type = parse_type(p);
     node->rhs = NULL;
+
+    if (lex_peek(p->l, 0).type == ASGN) {
+        lex_skip(p->l, 1);
+        node->rhs = parse_expr(p, 0);
+    }
 
     return node;
 }
@@ -279,7 +326,10 @@ AstBlock* parse_block(Parse* p) {
     u32 loc = lex_eat(p->l).index;
 
     AstBlock* node = arena_alloc(p->arena, AstBlock);
-    node->base = (ast_base){ AST_PROC, loc };
+    *node = (AstBlock){
+        .base = (ast_base){ AST_PROC, loc },
+        .statements = NULL,
+    };
 
     while (true) {
         switch (lex_peek(p->l, 0).type) {
@@ -320,15 +370,18 @@ AstProc* parse_proc(Parse* p) {
     Token fntk = lex_eat(p->l);
     assert(fntk.type == FN);
 
-    usize bob = sizeof(AstProc);
-    i64 bob2 = sizeof(AstProc);
-    AstProc* node = arena_allocate(p->arena, sizeof(AstProc), _Alignof(AstProc));
-    node->base = (ast_base){ AST_PROC, fntk.index };
-
     // Procedure name
     require(IDENT, "Procedure names must be a valid identifier.");
     Token ident = lex_eat(p->l);
-    node->name = ident.str;
+
+    AstProc* node = arena_alloc(p->arena, AstProc);
+    *node = (AstProc){
+        .base = (ast_base){ AST_PROC, fntk.index },
+        .name = ident.str,
+        .parameters = NULL,
+        .returnType = NULL,
+        .block = NULL,
+    };
 
     // Parameters
     require_s(LPAREN, "Procedure parameters must be declared in parentheses ( )");
@@ -336,7 +389,6 @@ AstProc* parse_proc(Parse* p) {
     switch(param.type) {
     case RPAREN:
         // Procedure has no parameters
-        node->parameters = NULL;
     case IDENT:
         // Procedure has some parameters
         node->parameters = parse_parameters(p);
@@ -355,6 +407,7 @@ AstProc* parse_proc(Parse* p) {
     }
 
     require(LBRACE, "A code block contained in curly braces { } must follow the function declaration");
+    node->block = parse_block(p);
 
     return node;
 }
@@ -388,9 +441,9 @@ ast_base* parse_one(Parse* p) {
     Token tk = lex_peek(p->l, 0);
     switch (tk.type) {
     case IDENT:
-        return &parse_decl(p)->base;
+        return (ast_base*) parse_decl(p);
     case FN:
-        return &parse_proc(p)->base;
+        return (ast_base*) parse_proc(p);
     case EOF_TOK:
         return NULL;
     default:

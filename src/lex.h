@@ -4,7 +4,7 @@
 
 #define LEX_BUFFER_SIZE 8
 
-enum Type {
+typedef enum {
     IDENT,
     INTEGER,
     FLOAT,
@@ -24,9 +24,7 @@ enum Type {
 
     FOR, IN,
 
-    LPAREN,
     RPAREN,
-    LBRACE,
     RBRACE,
     LBRACK,
     RBRACK,
@@ -38,7 +36,6 @@ enum Type {
     CONST_ASGN,
     ASGN,
 
-    DOT,
     SEMI,
 
     // Operators
@@ -53,6 +50,10 @@ enum Type {
     // BIT_XOR,    BIT_XOR_ASGN,
     NOT_BIT, NOT,
 
+    DOT,    // Dereference operator
+    LPAREN, // Call operator
+    LBRACE, // Index operator
+
     // Comparisons
     EQ,
     NEQ,
@@ -62,10 +63,10 @@ enum Type {
     GEQ,
 
     EOF_TOK,
-};
+} TokenType;
 
 struct Token {
-    i32 type;
+    TokenType type;
 
     u32 line;
     u32 column;

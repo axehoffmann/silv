@@ -21,7 +21,7 @@ typedef float    f32;
 typedef size_t   usize;
 
 #define Array_for(ITEM, ARR) \
-    for (__typeof__(ARR) ITEM = ARR; ITEM != ARR + hmlen(ARR) - 1; ITEM++)
+    for (__typeof__(ARR) ITEM = ARR; ITEM != ARR + arrlen(ARR); ITEM++)
 
 struct Str {
     char* data;

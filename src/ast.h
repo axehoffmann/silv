@@ -13,6 +13,7 @@ typedef struct ast_block AstBlock;
 typedef struct ast_constant AstConstant;
 typedef struct ast_memory AstMemory;
 typedef struct ast_binop AstBinOp;
+typedef struct ast_unop AstUnOp;
 typedef struct ast_decl AstDecl;
 typedef struct ast_assign AstAssign;
 typedef struct ast_if AstIf;
@@ -23,11 +24,12 @@ typedef struct ast_proc AstProc;
 
 typedef struct ast_type AstType;
 
-enum ast_node_type {
+typedef enum {
     AST_BLOCK,
     AST_CONSTANT,
     AST_MEMORY,
     AST_BINOP,
+    AST_UNOP,
     AST_DECL,
     AST_ASSIGN,
     AST_IF,
@@ -37,10 +39,10 @@ enum ast_node_type {
     AST_PROC,
     AST_STRUCT,
     AST_TYPE,
-};
+} ast_node_type;
 
 typedef struct ast_base {
-    i32 nodeType;
+    ast_node_type nodeType;
     u32 sourceIndex; // The index at which this node appears in the source file
 } ast_base;
 
@@ -77,6 +79,13 @@ typedef struct ast_binop {
     ast_base* lhs;
     ast_base* rhs;
 } AstBinOp;
+
+typedef struct ast_unop {
+    ast_base base;
+
+    i32 opTk;
+    ast_base* rest;
+} AstUnOp;
 
 typedef struct ast_decl {
     ast_base base;
