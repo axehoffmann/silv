@@ -24,6 +24,8 @@ typedef enum {
 
     FOR, IN,
 
+    RETURN, CONTINUE, BREAK,
+
     RPAREN,
     RBRACE,
     LBRACK,

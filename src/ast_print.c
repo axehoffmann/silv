@@ -5,6 +5,8 @@
 #include "ast.h"
 #include "lib.h"
 
+#include <assert.h>
+
 void print_constant(AstConstant* node) {
     switch (node->valueType) {
     case VALUE_UINT:
@@ -31,6 +33,18 @@ void print_memory(AstMemory* node) {
 
 void print_expr(ast_base* node);
 
+void print_call(AstCall* node) {
+    print_expr(node->lhs);
+
+    bool useBracks = (node->flags & CALL_ARRAY_INDEX);
+    printf("%s", useBracks ? "[" : "(");
+    Array_for(arg, node->args) {
+        print_expr(*arg);
+        printf(", ");
+    }
+    printf("%s", useBracks ? "]" : ")");
+}
+
 const char* tk_to_str(i32 tk) {
     const char* s;
     switch (tk) {
@@ -53,9 +67,16 @@ const char* tk_to_str(i32 tk) {
     case GEQ: s = ">="; break;
     case DOT: s = "."; break;
 
+    case ASGN: s = "="; break;
+
     default: s = "@ERROR@";
     }
     return s;
+}
+
+void print_return(AstReturn* node) {
+    printf("return ");
+    print_expr(node->value);
 }
 
 void print_binop(AstBinOp* node) {
@@ -79,20 +100,12 @@ void print_decl(AstDecl* decl) {
     }
 }
 
-void print_stmt(ast_base* node) {
-    switch (node->nodeType) {
-    case AST_DECL:
-        print_decl((AstDecl*) node); break;
-    }
-
-    printf(";\n");
-}
-
 void print_block(AstBlock* node) {
     printf("{\n");
     if (node->statements)
         Array_for(stmt, node->statements) {
-            print_stmt(*stmt);
+            print_expr(*stmt);
+            printf(";\n");
         }
     printf("}\n");
 }
@@ -110,10 +123,16 @@ void print_proc(AstProc* node) {
 
 void print_expr(ast_base* node) {
     switch (node->nodeType) {
+    case AST_DECL: print_decl((AstDecl*) node); break;
     case AST_CONSTANT: print_constant((AstConstant*) node); break;
     case AST_BINOP: print_binop((AstBinOp*) node); break;
     case AST_UNOP: print_unop((AstUnOp*) node); break;
     case AST_MEMORY: print_memory((AstMemory*) node); break;
     case AST_PROC: print_proc((AstProc*) node); break;
+    case AST_CALL: print_call((AstCall*) node); break;
+    case AST_RETURN: print_return((AstReturn*) node); break;
+
+    default: assert(false);
     }
+    
 }

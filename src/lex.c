@@ -67,6 +67,12 @@ Token lex_id_kw(Lex* l) {
     kw(KW_IF_HASH,     IF,     "if");
     kw(KW_ELSE_HASH,   ELSE,   "else");
 
+    kw(KW_FOR_HASH,    FOR,    "for");
+    kw(KW_IN_HASH,     IN,     "in");
+    kw(KW_RETURN_HASH, RETURN, "return");
+    kw(KW_BREAK_HASH,  BREAK,  "break");
+    kw(KW_CONTINUE_HASH, CONTINUE, "continue");
+
     kw(KW_VOID_HASH,   VOID,   "void");
 
     default: break;

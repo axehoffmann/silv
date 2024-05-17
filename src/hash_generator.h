@@ -25,6 +25,7 @@ inline void generate_keyword_hashes() {
     genhash(KW_I64_HASH,   "i64");
     genhash(KW_F32_HASH,   "f32");
     genhash(KW_F64_HASH,   "f64");
+    
     genhash(KW_VEC2_HASH,  "vec2");
     genhash(KW_VEC3_HASH,  "vec3");
     genhash(KW_VEC4_HASH,  "vec4");
@@ -42,6 +43,11 @@ inline void generate_keyword_hashes() {
 
     genhash(KW_FOR_HASH, "for");
     genhash(KW_IN_HASH, "in");
+
+    genhash(KW_RETURN_HASH, "return");
+    genhash(KW_CONTINUE_HASH, "continue");
+    genhash(KW_BREAK_HASH, "break");
+
 
     genhash(KW_SWITCH_HASH, "switch");
     genhash(KW_CASE_HASH, "case");

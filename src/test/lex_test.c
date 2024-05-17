@@ -10,7 +10,11 @@ void lex_test() {
     Lex* l = lex_start("test/t1.silv");
     Parse* p = parse_begin(l);
     
-    print_expr(parse_one(p));
+    while (true) {
+        ast_base* ast = parse_one(p);
+        if (!ast) break;
+        print_expr(ast);
+    }
 
     parse_end(p);
 }

@@ -8,6 +8,11 @@
 #define STB_DS_IMPLEMENTATION
 #include "stb_ds.h"
 
+#define fail(TK)                                                \
+    fprintf(stderr, "\nCompiler bug when parsing "              \
+                    "(parse.c: %i):\n", __LINE__);              \
+    errloc(p->l->buffer.data, TK.index, TK.line);
+
 #define require(TK, message) {                                  \
     Token tk = lex_peek(p->l, 0);                               \
     if (tk.type != TK) {                                        \
@@ -71,6 +76,7 @@ AstConstant* parse_constant(Parse* p) {
         node->boolean = tk.type == BTRUE;
         break;
     default:
+        fail(tk);
         assert(false);
     }
 
@@ -110,29 +116,32 @@ typedef struct precedence {
 precedence infix_precedence(i32 op) {
     switch (op)
     {
+    case ASGN:
+        return (precedence){ 1, 2 };
     case AND:
     case OR:
-        return (precedence){ 1, 2 };
+        return (precedence){ 3, 4 };
     case EQ:
     case NEQ:
     case LT:
     case LEQ:
     case GT:
     case GEQ:
-        return (precedence){ 3, 4 };
+        return (precedence){ 5, 6 };
     case ADD:
     case SUB:
-        return (precedence){ 5, 6 };
+        return (precedence){ 7, 8 };
     case MUL:
     case DIV:
     case MOD:
-        return (precedence){ 7, 8 };
+        return (precedence){ 9, 10 };
     case OR_BIT:
     case AND_BIT:
-        return (precedence){ 9, 10 };
+        return (precedence){ 11, 12 };
 
     case DOT:
         return (precedence){ 16, 15 };
+
     default:
         return (precedence){ -1, -1 };
     }
@@ -156,11 +165,55 @@ precedence postfix_precedence(i32 op) {
     case LPAREN:
         return (precedence){ 12, -1 };
     default:
-        assert(false);
-        exit(69);
+        return (precedence){ -1, -1 };
     }
 }
+ast_base* parse_expr(Parse* p, u8 curPrecedence);
 
+AstCall* parse_call(Parse* p) {
+
+    Token tk = lex_eat(p->l);
+    TokenType finaliser = tk.type == LBRACK ? RBRACK : RPAREN;
+
+    AstCall* node = arena_alloc(p->arena, AstCall);
+    *node = (AstCall){
+        .base = (ast_base){ AST_CALL, tk.index },
+        .flags = tk.type == LBRACK ? CALL_ARRAY_INDEX : CALL_NOFLAGS,
+        .lhs = NULL,
+        .args = NULL,
+    };
+
+    bool nextArg = true;
+    while (true) {
+        TokenType type = lex_peek(p->l, 0).type;
+        // @TODO: this doesn't really cover every fail case well.
+        if (type == RPAREN || type == RBRACK) {
+            if (finaliser == LBRACK) {
+                require_sc(RBRACK, "Unclosed bracket in expression", "Other bracket here", tk);
+            } else {
+                require_sc(RPAREN, "Unclosed paren in expression", "Other paren here", tk);
+            }
+            break;
+        }
+        // @TODO: can we have better error messages here?
+        if (!nextArg) {
+            require(finaliser, "Invalid syntax");
+            return node;
+        }
+
+        ast_base* arg = parse_expr(p, 0);
+        arrput(node->args, arg);
+
+        if (lex_peek(p->l, 0).type == COMMA) {
+            lex_eat(p->l);
+            continue;
+        }
+        // There wasn't a comma, so the arg list should end here.
+        nextArg = false;
+    }
+
+    return node;
+}
 
 ast_base* parse_expr(Parse* p, u8 curPrecedence) {
     // Parse a prefix operator, or a value
@@ -168,6 +221,7 @@ ast_base* parse_expr(Parse* p, u8 curPrecedence) {
     precedence prec = prefix_precedence(it.type);
     ast_base* node = NULL;
     if (prec.r == -1) {
+        // expression is parethesised, e.g.   (x + 5)
         if (it.type == LPAREN) {
             lex_skip(p->l, 1);
             node = parse_expr(p, 0);
@@ -177,6 +231,7 @@ ast_base* parse_expr(Parse* p, u8 curPrecedence) {
             node = parse_value(p);
     }
     else {
+        // Prefix unary operator
         AstUnOp* opnode = arena_alloc(p->arena, AstUnOp);
         *opnode = (AstUnOp){
             .base = (ast_base){ AST_UNOP, it.index },
@@ -191,7 +246,18 @@ ast_base* parse_expr(Parse* p, u8 curPrecedence) {
     while (true) {
         Token op = lex_peek(p->l, 0);
 
-        precedence prec = infix_precedence(op.type);
+        // Parse postfix operators:  [x,y,..] or (x,y,..)
+        precedence prec = postfix_precedence(op.type);
+        if (prec.l != -1) {
+            if (prec.l < curPrecedence) break;
+
+            AstCall* opnode = parse_call(p);
+            opnode->lhs = node;
+            node = (ast_base*) opnode;
+            continue;
+        }
+
+        prec = infix_precedence(op.type);
         if (prec.l == -1) 
             break; // Not an infix operator
         
@@ -224,27 +290,6 @@ AstType* parse_type(Parse* p) {
     node->typeID = type.type;
 
     return node;
-}
-
-AstCall* parse_call(Parse* p) {
-    Token ident = lex_eat(p->l);
-    // #TODO: call needs to count as an operator probably, so does indexing
-    // otherwise mystruct.myfn() won't work
-    AstCall* node = arena_alloc(p->arena, AstCall);
-    node->base = (ast_base){ AST_CALL, ident.index };
-    node->procName = ident.str;
-    node->args = NULL;
-    lex_eat(p->l); // l paren
-    
-    while (lex_peek(p->l, 0).type != RPAREN) {
-        ast_base* expr = parse_expr(p, 0);
-        arrput(node->args, expr);
-
-        if (lex_peek(p->l, 0).type == COMMA)
-            lex_skip(p->l, 1);
-    }
-    lex_eat(p->l); // r paren
-    return NULL;
 }
 
 AstDecl* parse_single_decl(Parse* p) {
@@ -281,31 +326,14 @@ AstDecl** parse_parameters(Parse* p) {
     return params;
 }
 
-AstAssign* parse_asgn(Parse* p) {
-    Token tk = lex_peek(p->l, 0);
-
-    AstAssign* node = arena_alloc(p->arena, AstAssign);
-    node->base = (ast_base){ AST_ASSIGN, tk.index };
-
-    node->lhs = parse_expr(p, 0);
-    require_s(ASGN, "An assignment must use the = sign.");
-    node->rhs = parse_expr(p, 0);
-
-    return NULL;
-}
-
 ast_base* parse_stmt(Parse* p) {
     ast_base* node = NULL;
     switch (lex_peek(p->l, 1).type) {
-    case LPAREN:
-        node = &parse_call(p)->base;
-        break;
     case COLON:
         node = &parse_single_decl(p)->base;
         break;
-    case ASGN:
-        node = &parse_asgn(p)->base;
-        break;
+    default:
+        node = (ast_base*) parse_expr(p, 0);
     }
 
     require_s(SEMI, "Expected a semicolon trailing a statement");
@@ -317,6 +345,18 @@ AstIf* parse_if(Parse* p);
 // Different path for parsing a code block with a single statement + no braces
 AstBlock* parse_single_stmt_block(Parse* p) {
     return NULL;
+}
+
+AstReturn* parse_return(Parse* p) {
+    Token tk = lex_eat(p->l);
+    assert(tk.type == RETURN);
+
+    AstReturn* node = arena_alloc(p->arena, AstReturn);
+    *node = (AstReturn){
+        .base = (ast_base){ AST_RETURN, tk.index },
+        .value = parse_expr(p, 0),
+    };
+    return node;
 }
 
 AstBlock* parse_block(Parse* p) {
@@ -337,7 +377,11 @@ AstBlock* parse_block(Parse* p) {
             arrput(node->statements, parse_stmt(p));
             break;
         case IF:
-            arrput(node->statements, parse_if(p));
+            arrput(node->statements, (ast_base*) parse_if(p));
+            break;
+        case RETURN:
+            arrput(node->statements, (ast_base*) parse_return(p));
+            require_s(SEMI, "return statement must be terminated by a semicolon");
             break;
         default:
             require(IDENT, "Cannot start a statement with:");
@@ -389,9 +433,11 @@ AstProc* parse_proc(Parse* p) {
     switch(param.type) {
     case RPAREN:
         // Procedure has no parameters
+        break;
     case IDENT:
         // Procedure has some parameters
         node->parameters = parse_parameters(p);
+        break;
     default:
         // Bad syntax
         require(RPAREN, "Parameters must be declared in the form (a: type, b: type, ...)");
