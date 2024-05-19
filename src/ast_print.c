@@ -31,7 +31,7 @@ void print_memory(AstMemory* node) {
     printf("%.*s", node->name.size, node->name.data);
 }
 
-void print_expr(ast_base* node);
+void print_expr(ast* node);
 
 void print_call(AstCall* node) {
     print_expr(node->lhs);
@@ -121,7 +121,7 @@ void print_proc(AstProc* node) {
     print_block(node->block);
 }
 
-void print_expr(ast_base* node) {
+void print_expr(ast* node) {
     switch (node->nodeType) {
     case AST_DECL: print_decl((AstDecl*) node); break;
     case AST_CONSTANT: print_constant((AstConstant*) node); break;

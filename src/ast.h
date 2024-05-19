@@ -41,19 +41,19 @@ typedef enum {
     AST_RETURN,
 } ast_node_type;
 
-typedef struct ast_base {
+typedef struct ast {
     ast_node_type nodeType;
     u32 sourceIndex; // The index at which this node appears in the source file
-} ast_base;
+} ast;
 
 typedef struct ast_block {
-    ast_base base;
+    ast base;
 
-    ast_base** statements; // Note this is an stb_ds dynamic array
+    ast** statements; // Note this is an stb_ds dynamic array
 } AstBlock;
 
 typedef struct ast_constant {
-    ast_base base;
+    ast base;
 
     u8 valueType;
     union {
@@ -67,77 +67,77 @@ typedef struct ast_constant {
 
 // @TODO: rename to identifer, its not necesarrily memory. operator overloads and such
 typedef struct ast_memory {
-    ast_base base;
+    ast base;
 
     Str name;
 } AstMemory;
 
 typedef struct ast_binop {
-    ast_base base;    
+    ast base;    
 
     i32 opTk; // The operator token type
-    ast_base* lhs;
-    ast_base* rhs;
+    ast* lhs;
+    ast* rhs;
 } AstBinOp;
 
 typedef struct ast_unop {
-    ast_base base;
+    ast base;
 
     i32 opTk;
-    ast_base* rest;
+    ast* rest;
 } AstUnOp;
 
 typedef struct ast_decl {
-    ast_base base;
+    ast base;
     
     Str name;
     AstType* type;
-    ast_base* rhs;
+    ast* rhs;
     
 } AstDecl;
 
 typedef struct ast_if {
-    ast_base base;
+    ast base;
 
-    ast_base* condition;
+    ast* condition;
     AstBlock* iftrue;
-    ast_base* iffalse;
+    ast* iffalse;
 } AstIf;
 
 typedef struct ast_value_list {
-    ast_base base;
+    ast base;
 
-    ast_base* exprs;
+    ast* exprs;
 } AstValueList;
 
 typedef struct ast_array {
-    ast_base base;
+    ast base;
 
     AstType* type;
     AstValueList* values;
 } AstArray;
 
 typedef struct ast_struct_literal {
-    ast_base base;
+    ast base;
 
     AstType* type;
     AstValueList* values;
 } AstStructLiteral;
 
 typedef struct ast_call {
-    ast_base base;
+    ast base;
 
     enum {
         CALL_NOFLAGS        = 0,
         CALL_ARRAY_INDEX    = 0b1,
     } flags;
     
-    ast_base* lhs;
-    ast_base** args;
+    ast* lhs;
+    ast** args;
 } AstCall;
 
 typedef struct ast_proc {
-    ast_base base;
+    ast base;
 
     Str name;
     AstDecl** parameters;
@@ -146,22 +146,22 @@ typedef struct ast_proc {
 } AstProc;
 
 typedef struct ast_struct {
-    ast_base base;
+    ast base;
 
     Str name;
     AstDecl* members;
 } AstStruct;
 
 typedef struct ast_type {
-    ast_base base;
+    ast base;
 
     i32 typeID; // Currently just the token type.
 } AstType;
 
 typedef struct ast_return {
-    ast_base base;
+    ast base;
 
-    ast_base* value;
+    ast* value;
 } AstReturn;
 
 typedef struct parse_state Parse;
@@ -169,6 +169,6 @@ typedef struct Lex Lex;
 
 Parse* parse_begin(Lex* l);
 void parse_end(Parse* p);
-ast_base* parse_one(Parse* p);
+ast* parse_one(Parse* p);
 
-void print_expr(ast_base* node);
+void print_expr(ast* node);

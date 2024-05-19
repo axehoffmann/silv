@@ -44,7 +44,7 @@
 
 typedef struct decl_entry {
     char* key;
-    ast_base* node;
+    ast* node;
 } decl_entry;
 
 typedef struct parse_state {
@@ -58,7 +58,7 @@ typedef struct parse_state {
 AstConstant* parse_constant(Parse* p) {
     Token tk = lex_eat(p->l);
     AstConstant* node = arena_alloc(p->arena, AstConstant);
-    node->base = (ast_base){ AST_CONSTANT, tk.index };
+    node->base = (ast){ AST_CONSTANT, tk.index };
 
     // #TODO: signed integers
     switch (tk.type) {
@@ -83,11 +83,11 @@ AstConstant* parse_constant(Parse* p) {
     return node;
 }
 
-ast_base* parse_value(Parse* p) {
+ast* parse_value(Parse* p) {
     if (lex_peek(p->l, 0).type == IDENT) {
         Token tk = lex_eat(p->l);
         AstMemory* node = arena_alloc(p->arena, AstMemory);
-        node->base = (ast_base){ AST_MEMORY, tk.index };
+        node->base = (ast){ AST_MEMORY, tk.index };
 
         node->name = tk.str;
         return &node->base;
@@ -168,7 +168,7 @@ precedence postfix_precedence(i32 op) {
         return (precedence){ -1, -1 };
     }
 }
-ast_base* parse_expr(Parse* p, u8 curPrecedence);
+ast* parse_expr(Parse* p, u8 curPrecedence);
 
 AstCall* parse_call(Parse* p) {
 
@@ -177,7 +177,7 @@ AstCall* parse_call(Parse* p) {
 
     AstCall* node = arena_alloc(p->arena, AstCall);
     *node = (AstCall){
-        .base = (ast_base){ AST_CALL, tk.index },
+        .base = (ast){ AST_CALL, tk.index },
         .flags = tk.type == LBRACK ? CALL_ARRAY_INDEX : CALL_NOFLAGS,
         .lhs = NULL,
         .args = NULL,
@@ -201,7 +201,7 @@ AstCall* parse_call(Parse* p) {
             return node;
         }
 
-        ast_base* arg = parse_expr(p, 0);
+        ast* arg = parse_expr(p, 0);
         arrput(node->args, arg);
 
         if (lex_peek(p->l, 0).type == COMMA) {
@@ -215,11 +215,11 @@ AstCall* parse_call(Parse* p) {
     return node;
 }
 
-ast_base* parse_expr(Parse* p, u8 curPrecedence) {
+ast* parse_expr(Parse* p, u8 curPrecedence) {
     // Parse a prefix operator, or a value
     Token it = lex_peek(p->l, 0);
     precedence prec = prefix_precedence(it.type);
-    ast_base* node = NULL;
+    ast* node = NULL;
     if (prec.r == -1) {
         // expression is parethesised, e.g.   (x + 5)
         if (it.type == LPAREN) {
@@ -234,12 +234,12 @@ ast_base* parse_expr(Parse* p, u8 curPrecedence) {
         // Prefix unary operator
         AstUnOp* opnode = arena_alloc(p->arena, AstUnOp);
         *opnode = (AstUnOp){
-            .base = (ast_base){ AST_UNOP, it.index },
+            .base = (ast){ AST_UNOP, it.index },
             .opTk = it.type,
         };
         lex_skip(p->l, 1);
         opnode->rest = parse_expr(p, prec.r);
-        node = (ast_base*) opnode;
+        node = (ast*) opnode;
     }
 
     // Pratt expression parser
@@ -253,7 +253,7 @@ ast_base* parse_expr(Parse* p, u8 curPrecedence) {
 
             AstCall* opnode = parse_call(p);
             opnode->lhs = node;
-            node = (ast_base*) opnode;
+            node = (ast*) opnode;
             continue;
         }
 
@@ -267,7 +267,7 @@ ast_base* parse_expr(Parse* p, u8 curPrecedence) {
         lex_skip(p->l, 1);
 
         AstBinOp* opnode = arena_alloc(p->arena, AstBinOp);
-        opnode->base = (ast_base){ AST_BINOP, op.index };
+        opnode->base = (ast){ AST_BINOP, op.index };
         opnode->opTk = op.type;
         opnode->lhs = node;
         opnode->rhs = parse_expr(p, prec.r);
@@ -285,7 +285,7 @@ AstType* parse_type(Parse* p) {
     // #TODO :)
     Token type = lex_eat(p->l);
     AstType* node = arena_alloc(p->arena, AstType);
-    node->base = (ast_base){ AST_TYPE, type.index };
+    node->base = (ast){ AST_TYPE, type.index };
 
     node->typeID = type.type;
 
@@ -298,7 +298,7 @@ AstDecl* parse_single_decl(Parse* p) {
     require_s(COLON, "Parameter declarations must be of the form 'name: type'");
 
     AstDecl* node = arena_alloc(p->arena, AstDecl);
-    node->base = (ast_base){ AST_DECL, ident.index };
+    node->base = (ast){ AST_DECL, ident.index };
     node->name = ident.str;
     node->type = parse_type(p);
     node->rhs = NULL;
@@ -326,14 +326,14 @@ AstDecl** parse_parameters(Parse* p) {
     return params;
 }
 
-ast_base* parse_stmt(Parse* p) {
-    ast_base* node = NULL;
+ast* parse_stmt(Parse* p) {
+    ast* node = NULL;
     switch (lex_peek(p->l, 1).type) {
     case COLON:
         node = &parse_single_decl(p)->base;
         break;
     default:
-        node = (ast_base*) parse_expr(p, 0);
+        node = (ast*) parse_expr(p, 0);
     }
 
     require_s(SEMI, "Expected a semicolon trailing a statement");
@@ -353,7 +353,7 @@ AstReturn* parse_return(Parse* p) {
 
     AstReturn* node = arena_alloc(p->arena, AstReturn);
     *node = (AstReturn){
-        .base = (ast_base){ AST_RETURN, tk.index },
+        .base = (ast){ AST_RETURN, tk.index },
         .value = parse_expr(p, 0),
     };
     return node;
@@ -367,7 +367,7 @@ AstBlock* parse_block(Parse* p) {
 
     AstBlock* node = arena_alloc(p->arena, AstBlock);
     *node = (AstBlock){
-        .base = (ast_base){ AST_PROC, loc },
+        .base = (ast){ AST_PROC, loc },
         .statements = NULL,
     };
 
@@ -377,10 +377,10 @@ AstBlock* parse_block(Parse* p) {
             arrput(node->statements, parse_stmt(p));
             break;
         case IF:
-            arrput(node->statements, (ast_base*) parse_if(p));
+            arrput(node->statements, (ast*) parse_if(p));
             break;
         case RETURN:
-            arrput(node->statements, (ast_base*) parse_return(p));
+            arrput(node->statements, (ast*) parse_return(p));
             require_s(SEMI, "return statement must be terminated by a semicolon");
             break;
         default:
@@ -400,7 +400,7 @@ AstIf* parse_if(Parse* p) {
     u32 loc = lex_eat(p->l).index;
 
     AstIf* node = arena_alloc(p->arena, AstIf);
-    node->base = (ast_base){ AST_IF, loc };
+    node->base = (ast){ AST_IF, loc };
 
     node->condition = parse_expr(p, 0);
     node->iftrue = parse_block(p);
@@ -420,7 +420,7 @@ AstProc* parse_proc(Parse* p) {
 
     AstProc* node = arena_alloc(p->arena, AstProc);
     *node = (AstProc){
-        .base = (ast_base){ AST_PROC, fntk.index },
+        .base = (ast){ AST_PROC, fntk.index },
         .name = ident.str,
         .parameters = NULL,
         .returnType = NULL,
@@ -463,7 +463,7 @@ AstDecl* parse_decl(Parse* p) {
     assert(tk.type == IDENT);
 
     AstDecl* node = arena_alloc(p->arena, AstDecl);
-    node->base = (ast_base){ AST_DECL, tk.index };
+    node->base = (ast){ AST_DECL, tk.index };
     
     node->name = tk.str;
 
@@ -471,7 +471,7 @@ AstDecl* parse_decl(Parse* p) {
     lex_skip(p->l, 1);
 
     tk = lex_peek(p->l, 0);
-    ast_base* def = NULL;
+    ast* def = NULL;
     switch (tk.type) {
     case DOT:
         def = &parse_struct_literal(p)->base; break;
@@ -483,13 +483,13 @@ AstDecl* parse_decl(Parse* p) {
     return node;
 }
 
-ast_base* parse_one(Parse* p) {
+ast* parse_one(Parse* p) {
     Token tk = lex_peek(p->l, 0);
     switch (tk.type) {
     case IDENT:
-        return (ast_base*) parse_decl(p);
+        return (ast*) parse_decl(p);
     case FN:
-        return (ast_base*) parse_proc(p);
+        return (ast*) parse_proc(p);
     case EOF_TOK:
         return NULL;
     default:

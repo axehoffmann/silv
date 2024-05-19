@@ -11,9 +11,9 @@ void lex_test() {
     Parse* p = parse_begin(l);
     
     while (true) {
-        ast_base* ast = parse_one(p);
-        if (!ast) break;
-        print_expr(ast);
+        ast* node = parse_one(p);
+        if (!node) break;
+        print_expr(node);
     }
 
     parse_end(p);
