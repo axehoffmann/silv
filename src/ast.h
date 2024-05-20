@@ -24,6 +24,8 @@ typedef struct ast_return AstReturn;
 
 typedef struct ast_type AstType;
 
+typedef struct ast_scope AstScope;
+
 typedef enum {
     AST_BLOCK,
     AST_CONSTANT,
@@ -35,11 +37,34 @@ typedef enum {
     AST_ARRAY,
     AST_STRUCT_LITERAL,
     AST_CALL,
-    AST_PROC,
-    AST_STRUCT,
-    AST_TYPE,
     AST_RETURN,
+
+    AST_PROC,
+    AST_TYPE,
+    AST_STRUCT,
 } ast_node_type;
+
+typedef struct symbol {
+    ast_node_type type; // PROC/DECL
+    // @TODO: make functions decls too so they don't need roundabout stuff
+    union {
+        AstDecl* decl;
+        AstProc* proc;
+    };
+} Symbol;
+
+typedef struct st_entry {
+    char* key;
+    bool declared; // Used when walking the tree during typechecking to
+                   // ensure declaration before use
+    Symbol symbol;
+} SymbolEntry;
+
+
+typedef struct ast_scope {
+    SymbolEntry* symbols; // Hashmap
+    AstScope* parent;
+} AstScope;
 
 typedef struct ast {
     ast_node_type nodeType;
@@ -50,6 +75,8 @@ typedef struct ast_block {
     ast base;
 
     ast** statements; // Note this is an stb_ds dynamic array
+
+    AstScope* scope;
 } AstBlock;
 
 typedef struct ast_constant {
@@ -69,7 +96,7 @@ typedef struct ast_constant {
 typedef struct ast_memory {
     ast base;
 
-    Str name;
+    char* name;
 } AstMemory;
 
 typedef struct ast_binop {
@@ -90,7 +117,7 @@ typedef struct ast_unop {
 typedef struct ast_decl {
     ast base;
     
-    Str name;
+    char* name;
     AstType* type;
     ast* rhs;
     
@@ -139,16 +166,18 @@ typedef struct ast_call {
 typedef struct ast_proc {
     ast base;
 
-    Str name;
+    char* name;
     AstDecl** parameters;
     AstType* returnType;
     AstBlock* block;
+
+    AstScope* scope;
 } AstProc;
 
 typedef struct ast_struct {
     ast base;
 
-    Str name;
+    char* name;
     AstDecl* members;
 } AstStruct;
 

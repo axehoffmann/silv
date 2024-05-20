@@ -76,12 +76,17 @@ struct Token {
     
     union 
     {
-        Str str;
+        char* str;
         u64 uint;
         f64 fpoint;
     };
 };
 typedef struct Token Token;
+
+typedef struct ident {
+    char* key;
+    u32 value;
+} Ident;
 
 struct Lex {
     Str buffer;
@@ -94,6 +99,8 @@ struct Lex {
     // Cursor position
     u32 curLn;
     u32 curCol;
+
+    Ident* strings;
 };
 typedef struct Lex Lex;
 

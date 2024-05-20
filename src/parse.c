@@ -42,18 +42,38 @@
     } else lex_skip(p->l, 1); }
 
 
-typedef struct decl_entry {
-    char* key;
-    ast* node;
-} decl_entry;
-
 typedef struct parse_state {
     Lex* l;
 
-    decl_entry* declarations;
+    AstScope* scope;
 
     Arena* arena;
 } Parse;
+
+AstScope* push_scope(Parse* p) {
+    AstScope* scope = arena_alloc(p->arena, AstScope);
+    *scope = (AstScope){
+        .symbols = NULL,
+        .parent = p->scope,
+    };
+    p->scope = scope;
+    return scope;
+}
+
+void pop_scope(Parse* p) {
+    assert(p->scope != NULL);
+    p->scope = p->scope->parent;
+}
+
+void declare_symbol(Parse* p, char* ident, Symbol sym, bool ordered) {
+    SymbolEntry entry = (SymbolEntry){
+        .key = ident,
+        .declared = !ordered,
+        .symbol = sym,
+    };
+    assert(p->scope != NULL);
+    hmputs(p->scope->symbols, entry);
+}
 
 AstConstant* parse_constant(Parse* p) {
     Token tk = lex_eat(p->l);
@@ -99,7 +119,7 @@ ast* parse_value(Parse* p) {
 Parse* parse_begin(Lex* l) {
     Parse* p = new(Parse);
     p->l = l;
-    p->declarations = NULL;
+    p->scope = NULL;
     p->arena = arena_new(1048576); // 1MB
     return p;
 }
@@ -308,6 +328,11 @@ AstDecl* parse_single_decl(Parse* p) {
         node->rhs = parse_expr(p, 0);
     }
 
+    declare_symbol(p, node->name, (Symbol){
+        .type = AST_DECL,
+        .decl = node,
+    }, true);
+
     return node;
 }
 
@@ -360,6 +385,9 @@ AstReturn* parse_return(Parse* p) {
 }
 
 AstBlock* parse_block(Parse* p) {
+
+    AstScope* scope = push_scope(p);
+
     if (lex_peek(p->l, 0).type != LBRACE)
         return parse_single_stmt_block(p);
 
@@ -369,6 +397,7 @@ AstBlock* parse_block(Parse* p) {
     *node = (AstBlock){
         .base = (ast){ AST_PROC, loc },
         .statements = NULL,
+        .scope = scope,
     };
 
     while (true) {
@@ -392,6 +421,8 @@ AstBlock* parse_block(Parse* p) {
             break;
         }
     }
+
+    pop_scope(p);
     
     return node;
 }
@@ -424,8 +455,10 @@ AstProc* parse_proc(Parse* p) {
         .name = ident.str,
         .parameters = NULL,
         .returnType = NULL,
+        .scope = NULL,
         .block = NULL,
     };
+    node->scope = push_scope(p);
 
     // Parameters
     require_s(LPAREN, "Procedure parameters must be declared in parentheses ( )");
@@ -455,6 +488,13 @@ AstProc* parse_proc(Parse* p) {
     require(LBRACE, "A code block contained in curly braces { } must follow the function declaration");
     node->block = parse_block(p);
 
+    pop_scope(p);
+
+    declare_symbol(p, node->name, (Symbol){
+        .type = AST_PROC,
+        .proc = node,
+    }, false);
+
     return node;
 }
 
@@ -479,6 +519,11 @@ AstDecl* parse_decl(Parse* p) {
     case FLOAT:
         def = &parse_constant(p)->base; break;
     }
+
+    declare_symbol(p, node->name, (Symbol){
+        .type = AST_DECL,
+        .decl = node,
+    }, true);
 
     return node;
 }

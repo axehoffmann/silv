@@ -3,10 +3,13 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
+#include <malloc.h>
 
 #include "hash_generator.h"
 #include "keyword_hashes.h"
 #include "compiler_util.h"
+
+#include "stb_ds.h"
 
 Token make_tkn(Lex* l, u8 width, Token tk) {
     l->index += width;
@@ -23,6 +26,19 @@ Token make_tkn(Lex* l, u8 width, Token tk) {
 
 bool isident(char c) {
     return c == '_' || isalpha(c) || isdigit(c);
+}
+
+#define LARGE_STR_THRESHOLD 1024
+
+char* intern_str(Lex* l, char* str, u32 len) {
+    // @TODO
+    assert(len < LARGE_STR_THRESHOLD);
+
+    char* buf = alloca(len + 1);
+    memcpy(buf, str, len);
+    buf[len] = '\0';
+    shput(l->strings, buf, len);
+    return (l->strings + shgeti(l->strings, buf))->key;
 }
 
 Token lex_id_kw(Lex* l) {
@@ -85,10 +101,7 @@ Token lex_id_kw(Lex* l) {
     return (Token){
         .type = IDENT,
         .line = l->curLn, .column = l->curCol, .index = l->index,
-        .str = (Str){
-            .data = loc,
-            .size = width,
-        },
+        .str = intern_str(l, loc, width),
     };
 }
 
@@ -263,7 +276,11 @@ Lex* lex_start(char* file) {
 
         .curLn = 1, // Editors start at line 1
         .curCol = 0,
+
+        .strings = NULL,
     };
+    sh_new_arena(l->strings);
+
     // Fill initial buffer
     for (u32 i = 0; i < LEX_BUFFER_SIZE; i++) {
         l->tkbuf[i] = lex_tkn(l);
@@ -273,6 +290,7 @@ Lex* lex_start(char* file) {
 }
 
 void lex_end(Lex* l) {
+    // @TODO: free the string arena
     str_free(&l->buffer);
     free(l);
 }
