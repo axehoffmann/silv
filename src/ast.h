@@ -161,6 +161,8 @@ typedef struct ast_call {
     
     ast* lhs;
     ast** args;
+
+    AstProc* resolvedProc;
 } AstCall;
 
 typedef struct ast_proc {
@@ -199,5 +201,7 @@ typedef struct Lex Lex;
 Parse* parse_begin(Lex* l);
 void parse_end(Parse* p);
 ast* parse_one(Parse* p);
+
+Symbol* find_symbol(AstScope* scope, char* ident);
 
 void print_expr(ast* node);

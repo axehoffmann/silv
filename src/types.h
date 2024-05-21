@@ -2,5 +2,6 @@
 
 typedef struct ast ast;
 typedef struct ast_type AstType;
+typedef struct ast_scope AstScope;
 
-AstType* resolve_types(ast* node);
+void resolve_types(ast* node);

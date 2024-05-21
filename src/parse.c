@@ -75,6 +75,17 @@ void declare_symbol(Parse* p, char* ident, Symbol sym, bool ordered) {
     hmputs(p->scope->symbols, entry);
 }
 
+Symbol* find_symbol(AstScope* scope, char* ident) {
+    while (true) {
+        if (scope == NULL) return NULL;
+
+        i32 idx = hmgeti(scope->symbols, ident);
+        if (idx != -1) return &((scope->symbols + idx)->symbol);
+
+        scope = scope->parent;
+    }
+}
+
 AstConstant* parse_constant(Parse* p) {
     Token tk = lex_eat(p->l);
     AstConstant* node = arena_alloc(p->arena, AstConstant);
@@ -201,6 +212,7 @@ AstCall* parse_call(Parse* p) {
         .flags = tk.type == LBRACK ? CALL_ARRAY_INDEX : CALL_NOFLAGS,
         .lhs = NULL,
         .args = NULL,
+        .resolvedProc = NULL,
     };
 
     bool nextArg = true;
